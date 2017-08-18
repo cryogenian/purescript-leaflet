@@ -5,32 +5,33 @@ import Prelude
 import Color as Color
 
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Ref (REF)
-import Control.Monad.Eff.Random (RANDOM, random)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Random (RANDOM, random)
+import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
-
+import DOM (DOM)
+import DOM.Classy.ParentNode (class IsParentNode, querySelector)
+import DOM.HTML (window)
+import DOM.HTML.Window (document)
 import Data.Array as A
 import Data.Either (Either(..))
-import Data.Traversable as F
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
+import DOM.Node.Document (createElement)
 import Data.Path.Pathy (file, dir, (</>), rootDir, currentDir)
+import Data.Traversable as F
 import Data.URI (URIRef)
 import Data.URI as URI
-
-import DOM (DOM)
-import DOM.HTML (window)
-import DOM.Classy.ParentNode (class IsParentNode, querySelector)
-import DOM.HTML.Window (document)
-
 import Graphics.Canvas (CANVAS)
-
+import HeatmapLayerData (heatmapLayerData)
 import Leaflet.Core as LC
 import Leaflet.Plugin.Heatmap as LH
+import Leaflet.Plugin.Brush as LB
 import Leaflet.Util ((×))
 
-import HeatmapLayerData (heatmapLayerData)
+
+import Debug.Trace as DT
+import Unsafe.Coerce (unsafeCoerce)
 
 foreign import onload ∷ ∀ e a. Eff e a → Eff e a
 
@@ -50,7 +51,7 @@ mkLatLngs = do
 testURI ∷ URIRef
 testURI =
   Left $ URI.URI
-  (Just $ URI.URIScheme "http")
+  (Just $ URI.Scheme "http")
   (URI.HierarchicalPart
    (Just $ URI.Authority Nothing [(URI.NameAddress "{s}.tile.osm.org") × Nothing])
    (Just $ Right $ rootDir </> dir "{z}" </> dir "{x}" </> file "{y}.png"))
@@ -116,11 +117,40 @@ heatmap doc = void do
     >>= LC.setZoom zoom
     >>= LC.addLayer (LC.tileToLayer tiles)
     >>= LC.addLayer lay
-    >>= LC.removeLayer lay
+--    >>= LC.removeLayer lay
+
+brush
+  ∷ ∀ e n
+  . IsParentNode n
+  ⇒ n
+  → MaybeT (Eff (ref ∷ REF, dom ∷ DOM, random ∷ RANDOM, canvas ∷ CANVAS|e)) Unit
+brush doc = void do
+  el ← MaybeT $ querySelector (wrap "#brush") doc
+  view ← LC.mkLatLng (-37.87) (175.457)
+  leaf ← LC.leaflet el
+  lay ← LC.layer
+  brushState ← LB.plugin lay leaf
+  tiles ← LC.tileLayer testURI
+  zoom ← LC.mkZoom 12
+  control ← LC.control
+  e ← liftEff do
+    d ← window >>= document
+    createElement "img" $ unsafeCoerce d
+  _ ← LC.initControl
+        (\c lf → DT.traceAnyA "init" *> pure (unit × e))
+        (\c lf mbv → DT.traceAnyA "remove")
+        control leaf
+  LC.setView view leaf
+    >>= LC.setZoom zoom
+    >>= LC.addLayer (LC.tileToLayer tiles)
+    >>= LC.addLayer lay
+    >>= flip LC.addTo control
 
 main ∷ ∀ e.Eff (ref ∷ REF, canvas ∷ CANVAS, dom ∷ DOM, random ∷ RANDOM|e) Unit
 main = onload do
   doc ← window >>= document
   void $ runMaybeT do
-    core doc
-    heatmap doc
+    brush doc
+    DT.traceAnyA "TROLOLO"
+--    core doc
+--    heatmap doc

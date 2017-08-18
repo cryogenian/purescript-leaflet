@@ -7,12 +7,9 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (class MonadEff, liftEff)
 import Control.Monad.Eff.Ref (REF, Ref, newRef, writeRef, readRef)
-
+import DOM (DOM)
 import Data.Function.Uncurried (Fn2, Fn4, runFn4, mkFn2)
 import Data.Maybe (Maybe(..))
-
-import DOM (DOM)
-
 import Leaflet.Core.Types as T
 
 foreign import onAddRemove_

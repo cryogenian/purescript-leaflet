@@ -17,3 +17,18 @@ exports.remove_ = function(control) {
         return control.remove();
     };
 };
+
+exports.control_ = function() {
+    return new L.Control();
+};
+
+exports.initControl_ = function(onAdd, onRemove, control, map) {
+    return function() {
+        control.onAdd = function(map) {
+            return onAdd(this, map)();
+        };
+        control.onRemove = function(map) {
+            onRemove(this, map)();
+        };
+    };
+};
